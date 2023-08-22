@@ -1,0 +1,52 @@
+.entry-list table {
+    /* Needed to be able to add TR border */
+    border-collapse: collapse;
+    min-width: 50%;
+}
+
+.entry-list th,
+.entry-list td {
+    padding-right: 5px;
+}
+
+.entry-list th {
+    text-align: center;
+}
+
+.entry-list tr:nth-child(1) {
+    border-bottom: 3px double black;
+}
+
+.entry-list td {
+    /* Other columns */
+    text-align: right;
+}
+
+.entry-list td:nth-child(2) {
+    /* Name column */
+    text-align: left;
+}
+
+.entry-list td:nth-child(1) {
+    /* Type column */
+    text-align: center;
+    width: 20px;
+}
+
+.entry-list tr:nth-child(even) {
+    background-color: #e0e0e0;
+}
+
+/*
+.entry-list .folder td > a:before {
+    content: '\1F4C1 ';
+}
+
+.entry-list .up td > a:before {
+    content: '\1F53C ';
+}
+
+.entry-list .file td > a:before {
+    content: '\1F4C4 ';
+}
+*/

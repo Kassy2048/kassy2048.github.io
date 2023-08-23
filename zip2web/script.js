@@ -424,8 +424,9 @@ document.addEventListener('DOMContentLoaded', () => {
                                 } else {
                                     const content = await root.getUint8Array({'password': password});
                                     serviceWorker.postMessage({name: 'getFile-resp',
-                                            path: msg.path, id: msg.id, content: content},
-                                            [content.buffer]);
+                                            path: msg.path, id: msg.id, content: content, headers: {
+                                                'Content-Type': zip.getMimeType(root.name),
+                                            }}, [content.buffer]);
                                 }
                             } catch(error) {
                                 debugLog(msg.path, error);

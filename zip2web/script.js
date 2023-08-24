@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const fileInput = document.getElementById('file');
     const browseFiles = document.getElementById('browse-files');
     const debugMode = document.getElementById('debug-mode');
+    const addFullscreen = document.getElementById('add-fullscreen');
     const progress = document.querySelector('#progress');  // TODEL?
     const progressBar = document.querySelector('#progress .value');  // TODEL?
     const dropzone = document.getElementById('dropzone');
@@ -271,6 +272,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let pageId;
     let playBaseUrl;
     const indexStyleUrl = baseUrl + '/indexStyle.css';
+    const hookScriptUrl = baseUrl + '/zip2web-extra.js';
 
     if(navigator.serviceWorker === undefined) {
         fileInput.disabled = true;
@@ -421,6 +423,20 @@ document.addEventListener('DOMContentLoaded', () => {
                                                 'Content-Type': 'text/html',
                                             }});
 
+                                } else if(addFullscreen.checked && htmlRE.test(root.name)) {
+                                    // Inject our script to add the fullscreen button
+                                    let html = await root.getText('utf-8', {'password': password});
+                                    const options = btoa(JSON.stringify({
+                                        addFullscreen: addFullscreen.checked,
+                                    }));
+                                    // XXX This can fail in multiple ways, but should work most of the time
+                                    html = html.replace(/(<\/\s*head\s*>)/i,
+                                            `\n<script src="${hookScriptUrl}" data-options="${options}"></script>\n$1`);
+                                    serviceWorker.postMessage({name: 'getFile-resp',
+                                            path: msg.path, id: msg.id, content: html, headers: {
+                                                'Content-Type': zip.getMimeType(root.name),
+                                            }});
+
                                 } else {
                                     const content = await root.getUint8Array({'password': password});
                                     serviceWorker.postMessage({name: 'getFile-resp',
@@ -429,7 +445,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                             }}, [content.buffer]);
                                 }
                             } catch(error) {
-                                debugLog(msg.path, error);
+                                console.log(msg.path, error);
                                 serviceWorker.postMessage({name: 'getFile-resp', path: msg.path, id: msg.id, error: 404});
                             }
                             break;
@@ -474,12 +490,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
         browseFiles.checked = getLocal('zip2web-browseFiles', 'false') == 'true';
         debugMode.checked = getLocal('zip2web-debugMode', 'false') == 'true';
+        addFullscreen.checked = getLocal('zip2web-addFullscreen', 'false') == 'true';
 
         browseFiles.addEventListener('change', (e) => {
             window.localStorage['zip2web-browseFiles'] = e.target.checked;
         });
         debugMode.addEventListener('change', (e) => {
             window.localStorage['zip2web-debugMode'] = e.target.checked;
+        });
+        addFullscreen.addEventListener('change', (e) => {
+            window.localStorage['zip2web-addFullscreen'] = e.target.checked;
         });
     }
 });

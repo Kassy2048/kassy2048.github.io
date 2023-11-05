@@ -1,7 +1,7 @@
 .entry-list table {
     /* Needed to be able to add TR border */
     border-collapse: collapse;
-    min-width: 50%;
+    width: 100%;
 }
 
 .entry-list th,

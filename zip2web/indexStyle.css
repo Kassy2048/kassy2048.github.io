@@ -17,12 +17,14 @@
     border-bottom: 3px double black;
 }
 
-.entry-list td {
+.entry-list td,
+.entry-list th {
     /* Other columns */
     text-align: right;
 }
 
-.entry-list td:nth-child(2) {
+.entry-list td:nth-child(2),
+.entry-list th:nth-child(2){
     /* Name column */
     text-align: left;
 }
@@ -35,6 +37,16 @@
 
 .entry-list tr:nth-child(even) {
     background-color: #e0e0e0;
+}
+
+.entry-list tr {
+    border-top: 1px solid transparent;
+    border-bottom: 1px solid transparent;
+}
+
+.entry-list tr:hover td {
+    border-top: 1px solid black;
+    border-bottom: 1px solid black;
 }
 
 /*

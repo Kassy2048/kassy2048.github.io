@@ -343,13 +343,35 @@ document.addEventListener('DOMContentLoaded', () => {
                             try {
                                 let parts = msg.path.split('/');
                                 let root = zipFs.root;
+                                let replaced = false;
                                 while(parts.length > 0) {
                                     if(parts[0].length > '') {
-                                        const child = root.getChildByName(parts[0]);
+                                        // const child = root.getChildByName(parts[0]);
+                                        // Try to find the children, ignoring the case if needed
+                                        let child, maybeChild, partLower = parts[0].toLowerCase();
+                                        for(let i = 0 ; i < root.children.length ; ++i) {
+                                            if(root.children[i].name.toLowerCase() == partLower) {
+                                                // Record non-exact match
+                                                maybeChild = root.children[i];
+                                                if(root.children[i].name == parts[0]) {
+                                                    // Exact match found
+                                                    child = root.children[i];
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                        if(child === undefined) {
+                                            if(maybeChild !== undefined) replaced = true;
+                                            child = maybeChild;
+                                        }
                                         if(child === undefined) throw new Error("Not Found");
                                         root = child;
                                     }
                                     parts = parts.slice(1);
+                                }
+
+                                if(replaced) {
+                                    console.warn(`Replacing not found entry "${msg.path}" with "${root.data.filename}"`);
                                 }
 
                                 if(!browseFiles.checked && root.directory) {

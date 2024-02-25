@@ -24,7 +24,7 @@ self.addEventListener("fetch", (e) => {
   if(m === null) return;
 
   const pageId = decodeURIComponent(m[1]);
-  const path = decodeURI(m[2]);
+  const path = decodeURIComponent(m[2]);
 
   e.respondWith(new Promise(async (resolve, reject) => {
     const client = await self.clients.get(pageId);

@@ -425,14 +425,14 @@ document.addEventListener('DOMContentLoaded', () => {
                                     folders.forEach((folder) => {
                                         html += '<tr>'
                                                 + '<td>&#x1F4C1;</td>'
-                                                + `<td><a href="${escape(folder.name)}/">${htmlEscape(folder.name)}/</a></td>`
+                                                + `<td><a href="${encodeURIComponent(folder.name)}/">${htmlEscape(folder.name)}/</a></td>`
                                                 + '<td>-</td><td>-</td></tr>';
                                     });
 
                                     files.forEach((file) => {
                                         html += '<tr>'
                                                 + '<td>&#x1F4C4;</td>'
-                                                + `<td><a href="${escape(file.name)}">${htmlEscape(file.name)}</a></td>`
+                                                + `<td><a href="${encodeURIComponent(file.name)}">${htmlEscape(file.name)}</a></td>`
                                                 + `<td>${sizeStr(file.data.uncompressedSize)}</td>`
                                                 + `<td>${dateStr(file.data.lastModDate)}</td>`
                                                 + '</tr>';

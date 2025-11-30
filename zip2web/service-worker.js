@@ -120,7 +120,7 @@ self.addEventListener("message", (e) => {
   }
 });
 
-self.addEventListener("install", function () {
+self.addEventListener("install", function (event) {
   debugLog('SW', 'install');
   self.skipWaiting();
 

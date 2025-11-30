@@ -3,6 +3,19 @@
  * and send them back to the browser.
  */
 
+const CACHE_NAME = 'zip2web-cache-v1';
+const urlsToCache = [
+  'arrows-fullscreen.svg',
+  'drag-and-drop-128px.png',
+  'fullscreen-exit.svg',
+  'github-mark-pink.svg',
+  'index.html',
+  'indexStyle.css',
+  'script.js',
+  'zip2web-extra.js',
+  'zip-fs-full.min.js',
+];
+
 // play/<pageId>/<path>
 const pathRE = new RegExp("/play/([^/]+)/(.*)(\\?.*)?$");
 
@@ -21,7 +34,20 @@ function debugLog(...args) {
 self.addEventListener("fetch", (e) => {
   debugLog('SW', 'fetch', e);
   const m = pathRE.exec(e.request.url);
-  if(m === null) return;
+  if(m === null) {
+    e.respondWith(
+      caches.match(e.request).then(response => {
+        // Serve from cache if available
+        if (response) {
+          return response;
+        }
+
+        // Otherwise try network (will fail offline)
+        return fetch(e.request);
+      })
+    );
+    return;
+  }
 
   const pageId = decodeURIComponent(m[1]);
   const path = decodeURIComponent(m[2]);
@@ -97,6 +123,11 @@ self.addEventListener("message", (e) => {
 self.addEventListener("install", function () {
   debugLog('SW', 'install');
   self.skipWaiting();
+
+  // Cache all the required files
+  event.waitUntil(
+    caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache))
+  );
 });
 
 self.addEventListener("activate", function (event) {

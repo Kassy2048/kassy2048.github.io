@@ -16,6 +16,8 @@ const urlsToCache = [
   'zip-fs-full.min.js',
 ];
 
+const ZIP_CACHE_NAME = 'zip2web-zip-cache';
+
 // play/<pageId>/<path>
 const pathRE = new RegExp("/play/([^/]+)/(.*)(\\?.*)?$");
 
@@ -62,6 +64,13 @@ self.addEventListener("fetch", (e) => {
       return;
     }
 
+    // Check the cache first to prevent decompressing files too often
+    const cache = await caches.open(ZIP_CACHE_NAME);
+    const cachedResp = await cache.match(e.request);
+    if(cachedResp) {
+      return resolve(cachedResp);
+    }
+
     const reqId = ++self.reqId;
     self.requests[reqId] = {
       path: path,
@@ -69,6 +78,7 @@ self.addEventListener("fetch", (e) => {
       resolve: resolve,
       reject: reject,
       time: Date.now(),  // TODO Remove stale requests
+      url: e.request.url,
     };
 
     client.postMessage({name: 'getFile', id: reqId, path: path});
@@ -107,10 +117,14 @@ self.addEventListener("message", (e) => {
         }));
       } else {
         // TODO Add other headers?
-        request.resolve(new Response(msg.content, {
+        const resp = new Response(msg.content, {
           status: status,
           headers: headers,
-        }));
+        });
+
+        const cachedResp = resp.clone();
+        caches.open(ZIP_CACHE_NAME).then(cache => cache.put(request.url, resp));
+        request.resolve(cachedResp);
       }
       break;
 

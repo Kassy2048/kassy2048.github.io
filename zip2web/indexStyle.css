@@ -1,3 +1,6 @@
+/* This CSS is used to style the directory index page.
+ */
+
 .entry-list table {
     /* Needed to be able to add TR border */
     border-collapse: collapse;

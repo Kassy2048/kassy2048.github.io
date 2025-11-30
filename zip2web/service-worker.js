@@ -1,6 +1,9 @@
-/** This service worker is a way to play HTML files located in MEMFS.
- * It forwards fetch requests to the rags2html page so it can extract the resources
- * and send them back to the browser.
+/* This service worker intercepts the requests the the "/play" folder and forwards
+ * them to the page where the associated ZIP file is opened for it to decompress
+ * the file. The result is then sent back to the browser as the request response.
+ *
+ * It also caches all the static resources from the site to make it available
+ * offline as an installable PWA.
  */
 
 const CACHE_NAME = 'zip2web-cache-v1';

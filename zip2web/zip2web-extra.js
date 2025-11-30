@@ -1,3 +1,7 @@
+/* This script file is injected in the HTML page to add these extra features:
+ *  - Full-screen button
+ */
+
 {
 const baseUrl = new URL(document.currentScript.src).href.replace(/\/[^\/]+$/, '');
 const options = JSON.parse(atob(document.currentScript.dataset.options));

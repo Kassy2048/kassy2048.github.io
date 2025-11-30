@@ -1,6 +1,11 @@
 // XXX document.currentScript is not available in event handlers
 const baseUrl = new URL(document.currentScript.src).href.replace(/\/[^\/]+$/, '');
 
+/** Stream files bigger than MIN_STREAM_SIZE.
+ * (needed for video to start playing sooner)
+ */
+const MIN_STREAM_SIZE = 10 * 1024 * 1024;  // 10 MB
+
 document.addEventListener('DOMContentLoaded', () => {
     const howto = document.querySelector('.howto');
     const fileInput = document.getElementById('file');
@@ -460,11 +465,32 @@ document.addEventListener('DOMContentLoaded', () => {
                                             }});
 
                                 } else {
-                                    const content = await root.getUint8Array({'password': password});
-                                    serviceWorker.postMessage({name: 'getFile-resp',
-                                            path: msg.path, id: msg.id, content: content, headers: {
-                                                'Content-Type': zip.getMimeType(root.name),
-                                            }}, [content.buffer]);
+                                    const fileSize = root.uncompressedSize;
+                                    const resp = {
+                                        name: 'getFile-resp',
+                                        path: msg.path,
+                                        id: msg.id,
+                                        headers: {
+                                            'Content-Type': zip.getMimeType(root.name),
+                                            'Content-Length': root.fileSize,
+                                        },
+                                    };
+                                    const transfer = [];
+
+                                    if(fileSize >= MIN_STREAM_SIZE) {
+                                        // Stream the file content
+                                        const {readable, writable} = new TransformStream();
+                                        root.getWritable(writable, {'password': password});
+                                        resp.stream = readable;
+                                        transfer.push(readable);
+                                    } else {
+                                        // Decompress the file at once
+                                        const content = await root.getUint8Array({'password': password});
+                                        resp.content = content;
+                                        transfer.push(content.buffer);
+                                    }
+
+                                    serviceWorker.postMessage(resp, transfer);
                                 }
                             } catch(error) {
                                 console.log(msg.path, error);

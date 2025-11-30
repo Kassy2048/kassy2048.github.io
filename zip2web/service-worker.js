@@ -119,15 +119,30 @@ self.addEventListener("message", (e) => {
           headers: headers,
         }));
       } else {
+        let body, cacheBody;
+
+        if(msg.stream !== undefined) {
+          // cache.put() consumes the body so we need a full copy of it
+          [body, cacheBody] = msg.stream.tee();
+        } else {
+          body = msg.content;
+          // cache.put() consumes the body so we need a full copy of it
+          cacheBody = body.slice();
+        }
+
         // TODO Add other headers?
-        const resp = new Response(msg.content, {
+        const resp = new Response(body, {
           status: status,
           headers: headers,
         });
 
-        const cachedResp = resp.clone();
-        caches.open(ZIP_CACHE_NAME).then(cache => cache.put(request.url, resp));
-        request.resolve(cachedResp);
+        const cacheResp = new Response(cacheBody, {
+          status: status,
+          headers: headers,
+        });
+
+        caches.open(ZIP_CACHE_NAME).then(cache => cache.put(request.url, cacheResp));
+        request.resolve(resp);
       }
       break;
 

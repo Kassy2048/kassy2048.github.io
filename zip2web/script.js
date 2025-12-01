@@ -90,7 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
         await handleFiles(fileInput.files);
     });
 
-    async function handleFiles(files, isDirectory) {
+    async function handleFiles(files, isDirectory, filePaths) {
         if(isDirectory === undefined) isDirectory = openFolder.checked;
 
         if(busy) return;
@@ -110,7 +110,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             if(isDirectory) {
-                await openLocalFolder(files);
+                await openLocalFolder(files, filePaths);
             } else {
                 const file = files[0];
                 //TODEL if(!file.name.toLowerCase().endsWith('.zip')) {
@@ -213,7 +213,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function openLocalFolder(files) {
+    async function openLocalFolder(files, filePaths) {
         zipFilename = null;
 
         convertProgress(0, 'Listing files...');
@@ -303,8 +303,14 @@ document.addEventListener('DOMContentLoaded', () => {
             baseFolder.addEntry(fileName, file);
         }
 
-        for(const fileHandle of files) {
-            addFile(fileHandle, root, fileHandle.webkitRelativePath.split('/'));
+        for(let i = 0 ; i < files.length ; ++i) {
+            const fileHandle = files[i];
+            let path = filePaths !== undefined ? filePaths[i]
+                    : fileHandle.webkitRelativePath;
+
+            if(path.startsWith('/')) path = path.slice(1);
+
+            addFile(fileHandle, root, path.split('/'));
         }
 
         // Create a ZipFS compatible object
@@ -338,6 +344,15 @@ document.addEventListener('DOMContentLoaded', () => {
             [...e.dataTransfer.items].forEach((item, i) => {
                 // If dropped items aren't files, reject them
                 if (item.kind === "file") {
+                    if(item.webkitGetAsEntry !== undefined) {
+                        const entry = item.webkitGetAsEntry();
+                        if(entry !== null && entry.isDirectory) {
+                            // Add the directory to visit later
+                            files.push(entry);
+                            return;  // Do not continue
+                        }
+                    }
+
                     files.push(item.getAsFile());
                 }
             });
@@ -369,17 +384,55 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const file = files[0];
-        //TODEL if(!file.name.toLowerCase().endsWith('.zip')) {
-        //TODEL     alert("Only drag ZIP files on this page.");
-        //TODEL     return;
-        //TODEL }
+        if(file instanceof File) {
+            // A single file (File)
 
-        // Replace input file value with this file (this does not trigger the "change" event)
-        const dt = new DataTransfer();
-        dt.items.add(file);
-        fileInput.files = dt.files;
+            //TODEL if(!file.name.toLowerCase().endsWith('.zip')) {
+            //TODEL     alert("Only drag ZIP files on this page.");
+            //TODEL     return;
+            //TODEL }
 
-        handleFiles([file], false);
+            // Replace input file value with this file (this does not trigger the "change" event)
+            const dt = new DataTransfer();
+            dt.items.add(file);
+            fileInput.files = dt.files;
+
+            handleFiles([file], false);
+
+        } else {
+            // A directory (FileSystemDirectoryEntry)
+            const allFiles = [];
+            const filePaths = [];
+
+            async function visitFolder(folder) {
+                while(true) {
+                    const results = await new Promise((resolve, reject) => {
+                        folder.readEntries(resolve, reject);
+                    });
+
+                    if(!results.length) break;
+
+                    for(const entry of results) {
+                        if(entry.isDirectory) {
+                            await visitFolder(entry.createReader());
+                        } else if(entry.isFile) {
+                            // Add it to allFiles
+                            const file = await new Promise((resolve, reject) => {
+                                entry.file(resolve, reject);
+                            });
+
+                            allFiles.push(file);
+                            // webkitRelativePath is always empty here...
+                            filePaths.push(entry.fullPath);
+                        }
+                    }
+                }
+            }
+
+            await visitFolder(file.createReader());
+
+            handleFiles(allFiles, true, filePaths);
+        }
     });
 
     document.addEventListener('dragover', (e) => {

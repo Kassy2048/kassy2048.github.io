@@ -335,8 +335,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Drag'n'drop
 
-    // TODO Add folder drop support
-
     function dnd_files(e) {
         let files = [];
         if(e.dataTransfer.items) {

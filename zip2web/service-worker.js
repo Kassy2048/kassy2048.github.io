@@ -40,6 +40,11 @@ self.addEventListener("fetch", (e) => {
   debugLog('SW', 'fetch', e);
   const m = pathRE.exec(e.request.url);
   if(m === null) {
+    if(e.request.url.startsWith('http://127.0.0.1:')) {
+      // Dev version, do not cache static files
+      return e.respondWith(fetch(e.request));
+    }
+
     e.respondWith(
       caches.match(e.request).then(response => {
         // Serve from cache if available

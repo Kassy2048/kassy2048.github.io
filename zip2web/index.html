@@ -156,9 +156,14 @@ The ZIP file is not sent to the Web server, everything happens locally in the br
     </div>
 
     <div class="controls">
-        <label>ZIP File: <input type="file" id="file" /></label>
+        <label><span id="file-label">ZIP File</span>: <input type="file" id="file" /></label>
+        <br />
+        <br />
         <label title="Show a file listing instead of trying to open the first HTML file found.">
             <input type="checkbox" id="browse-files" /> Browse files
+        </label>
+        <label title="Open a local folder instead of a ZIP file.">
+            <input type="checkbox" id="open-folder" /> Open local folder
         </label>
         <label title="Add a button to switch to fullscreen from HTML pages.">
             <input type="checkbox" id="add-fullscreen" /> Fullscreen button

@@ -8,8 +8,10 @@ const MIN_STREAM_SIZE = 10 * 1024 * 1024;  // 10 MB
 
 document.addEventListener('DOMContentLoaded', () => {
     const howto = document.querySelector('.howto');
+    const fileLabel = document.getElementById('file-label');
     const fileInput = document.getElementById('file');
     const browseFiles = document.getElementById('browse-files');
+    const openFolder = document.getElementById('open-folder');
     const debugMode = document.getElementById('debug-mode');
     const addFullscreen = document.getElementById('add-fullscreen');
     const progress = document.querySelector('#progress');  // TODEL?
@@ -77,71 +79,48 @@ document.addEventListener('DOMContentLoaded', () => {
     let busy = false;
     let zipFs = null;
     let password = '';
-    let zipFilename = '';
+    let zipFilename = null;
 
     const htmlRE = /\.html?$/i;
     const indexRE = /^index\.html?$/i;
 
     fileInput.addEventListener('change', async (e) => {
         debugLog(e);
+
+        await handleFiles(fileInput.files);
+    });
+
+    async function handleFiles(files, isDirectory) {
+        if(isDirectory === undefined) isDirectory = openFolder.checked;
+
         if(busy) return;
 
-        if(fileInput.files.length == 0) return;  // Happens on cancel
-        if(fileInput.files.length > 1) {
+        if(files.length == 0) return;  // Happens on cancel
+        if(files.length > 1 && !isDirectory) {
             alert("Only select one file.");
             return;
         }
-
-        const file = fileInput.files[0];
-        //TODEL if(!file.name.toLowerCase().endsWith('.zip')) {
-        //TODEL     alert("Only select ZIP files.");
-        //TODEL     return;
-        //TODEL }
-        openFile(file);
-    });
-
-    async function openFile(file) {
-        if(busy) return;
 
         busy = true;
         fileInput.disabled = true;
         browseFiles.disabled = true;
         errorDiv.innerHTML = '';
 
-        zipFilename = file.name;
-
         const start = performance.now();
 
         try {
-            convertProgress(0, 'Opening ZIP file...');
-
-            zipFs = new zip.fs.FS();
-            await zipFs.importBlob(file);
+            if(isDirectory) {
+                await openLocalFolder(files);
+            } else {
+                const file = files[0];
+                //TODEL if(!file.name.toLowerCase().endsWith('.zip')) {
+                //TODEL     alert("Only select ZIP files.");
+                //TODEL     return;
+                //TODEL }
+                await openFile(file);
+            }
 
             window._zipFs = zipFs;  // DEBUG
-
-            convertProgress(0.33, 'Parsing ZIP file...');
-
-            if(zipFs.isPasswordProtected()) {
-                let first = true;
-                let promptMsg = 'File is password protected, please enter password:';
-                while(true) {
-                    const ret = prompt(promptMsg, password);
-                    if(ret === null) {
-                        showError('File is password protected.');
-                        return;
-                    }
-
-                    password = ret;
-
-                    if(await zipFs.checkPassword(password)) break;
-
-                    if(first) {
-                        first = false;
-                        promptMsg = 'Bad password.\n\n' + promptMsg;
-                    }
-                }
-            }
 
             /* Return the only HTML file in root folder if any, or the only index HTML file if any
              * If there is only a single directory entry in the root folder, use it as new root
@@ -191,6 +170,7 @@ document.addEventListener('DOMContentLoaded', () => {
             playframe.style.display = 'block';
 
         } catch(e) {
+            console.error(e);
             showError(e);
 
         } finally {
@@ -200,7 +180,156 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    async function openFile(file) {
+        zipFilename = file.name;
+
+        convertProgress(0, 'Opening ZIP file...');
+
+        zipFs = new zip.fs.FS();
+        zipFs.isLocalDir = false;
+        await zipFs.importBlob(file);
+
+        convertProgress(0.33, 'Parsing ZIP file...');
+
+        if(zipFs.isPasswordProtected()) {
+            let first = true;
+            let promptMsg = 'File is password protected, please enter password:';
+            while(true) {
+                const ret = prompt(promptMsg, password);
+                if(ret === null) {
+                    showError('File is password protected.');
+                    return;
+                }
+
+                password = ret;
+
+                if(await zipFs.checkPassword(password)) break;
+
+                if(first) {
+                    first = false;
+                    promptMsg = 'Bad password.\n\n' + promptMsg;
+                }
+            }
+        }
+    }
+
+    async function openLocalFolder(files) {
+        zipFilename = null;
+
+        convertProgress(0, 'Listing files...');
+
+        class Directory {
+            constructor(name, parent) {
+                this.name = name;  // optional for root folder
+                this.parent = parent;  // optional for root folder
+                this.entries = {};
+
+                // ZipFS interface
+                this.directory = true;
+                this.children = [];
+            }
+
+            getEntry(name) {
+                const entry = this.entries[name];
+                return entry === undefined ? null : entry;
+            }
+
+            addEntry(name, item, _noCheck) {
+                if(!!!_noCheck && this.entries[name] !== undefined) {
+                    throw new Error(`"${name}" already in ${this.name}`);
+                }
+
+                this.entries[name] = item;
+                this.children.push(item);
+            }
+
+            get path() {
+                if(this.parent !== undefined) {
+                    return this.parent.path + '/' + this.name;
+                } else {
+                    // Root folder
+                    return '';
+                }
+            }
+        }
+
+        class File {
+            constructor(name, handle, parent) {
+                this.name = name;
+                this.handle = handle;
+                this.parent = parent;
+
+                // ZipFS interface
+                this.directory = false;
+                this.uncompressedSize = handle.size;
+                this.data = {
+                    uncompressedSize: handle.size,
+                    lastModDate: new Date(handle.lastModified),
+                };
+            }
+
+            get path() {
+                return this.parent.path + '/' + this.name;
+            }
+
+            // ZipFS interface
+
+            async getText(encoding, options) {
+                // Only UTF-8 is supported
+                return await this.handle.text();
+            }
+
+            async getUint8Array(options) {
+                const buffer = await this.handle.arrayBuffer();
+                return new Uint8Array(buffer);
+            }
+        }
+
+        const root = new Directory();
+
+        function addFile(fileHandle, baseFolder, path) {
+            if(path.length != 1) {
+                const folderName = path[0];
+                let folder = baseFolder.getEntry(folderName);
+                if(folder === null) {
+                    folder = new Directory(folderName, baseFolder);
+                    baseFolder.addEntry(folderName, folder, true);
+                }
+                return addFile(fileHandle, folder, path.slice(1));
+            }
+
+            const fileName = path[0];
+            const file = new File(fileName, fileHandle, baseFolder);
+            baseFolder.addEntry(fileName, file);
+        }
+
+        for(const fileHandle of files) {
+            addFile(fileHandle, root, fileHandle.webkitRelativePath.split('/'));
+        }
+
+        // Create a ZipFS compatible object
+        zipFs = {
+            root: root,
+            isLocalDir: true,
+        };
+    }
+
+    function onOpenFolderChange(e) {
+        if(openFolder.checked) {
+            // Select a local folder instead of a file
+            fileInput.webkitdirectory = true;
+            fileLabel.textContent = 'Local Folder';
+        } else {
+            fileInput.webkitdirectory = false;
+            fileLabel.textContent = 'ZIP File';
+        }
+    }
+
+    openFolder.addEventListener('change', onOpenFolderChange);
+
     // Drag'n'drop
+
+    // TODO Add folder drop support
 
     function dnd_files(e) {
         let files = [];
@@ -250,7 +379,7 @@ document.addEventListener('DOMContentLoaded', () => {
         dt.items.add(file);
         fileInput.files = dt.files;
 
-        openFile(file);
+        handleFiles([file], false);
     });
 
     document.addEventListener('dragover', (e) => {
@@ -411,7 +540,9 @@ document.addEventListener('DOMContentLoaded', () => {
                                     folders.sort((a, b) => a.name.localeCompare(b.name));
                                     files.sort((a, b) => a.name.localeCompare(b.name));
 
-                                    const title = `Index of ${htmlEscape(msg.path)} (from ${htmlEscape(zipFilename)})`;
+                                    let title = `Index of ${htmlEscape(msg.path)}`;
+                                    if(zipFilename !== null) title += `(from ${htmlEscape(zipFilename)})`;
+
                                     let html = '<!DOCTYPE html><html><head>'
                                             + '<title>' + title +'</title>'
                                             + '<meta charset="utf-8">'
@@ -472,12 +603,12 @@ document.addEventListener('DOMContentLoaded', () => {
                                         id: msg.id,
                                         headers: {
                                             'Content-Type': zip.getMimeType(root.name),
-                                            'Content-Length': root.fileSize,
+                                            'Content-Length': fileSize,
                                         },
                                     };
                                     const transfer = [];
 
-                                    if(fileSize >= MIN_STREAM_SIZE) {
+                                    if(!zipFs.isLocalDir && fileSize >= MIN_STREAM_SIZE) {
                                         // Stream the file content
                                         const {readable, writable} = new TransformStream();
                                         root.getWritable(writable, {'password': password});
@@ -493,7 +624,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                     serviceWorker.postMessage(resp, transfer);
                                 }
                             } catch(error) {
-                                console.log(msg.path, error);
+                                console.warn(msg.path, error);
                                 serviceWorker.postMessage({name: 'getFile-resp', path: msg.path, id: msg.id, error: 404});
                             }
                             break;
@@ -537,11 +668,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         browseFiles.checked = getLocal('zip2web-browseFiles', 'false') == 'true';
+        openFolder.checked = getLocal('zip2web-openFolder', 'false') == 'true';
         debugMode.checked = getLocal('zip2web-debugMode', 'false') == 'true';
         addFullscreen.checked = getLocal('zip2web-addFullscreen', 'false') == 'true';
 
         browseFiles.addEventListener('change', (e) => {
             window.localStorage['zip2web-browseFiles'] = e.target.checked;
+        });
+        openFolder.addEventListener('change', (e) => {
+            window.localStorage['zip2web-openFolder'] = e.target.checked;
         });
         debugMode.addEventListener('change', (e) => {
             window.localStorage['zip2web-debugMode'] = e.target.checked;
@@ -549,5 +684,7 @@ document.addEventListener('DOMContentLoaded', () => {
         addFullscreen.addEventListener('change', (e) => {
             window.localStorage['zip2web-addFullscreen'] = e.target.checked;
         });
+
+        onOpenFolderChange();
     }
 });

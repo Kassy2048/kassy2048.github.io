@@ -6,7 +6,7 @@
  * offline as an installable PWA.
  */
 
-const CACHE_NAME = 'zip2web-cache-v2';
+const CACHE_NAME = 'zip2web-cache-v3';
 const urlsToCache = [
   'arrows-fullscreen.svg',
   'drag-and-drop-128px.png',
@@ -16,7 +16,7 @@ const urlsToCache = [
   'indexStyle.css',
   'script.js',
   'zip2web-extra.js',
-  'zip-fs-full.min.js',
+  'zip-fs.min.js',
 ];
 
 const ZIP_CACHE_NAME = 'zip2web-zip-cache';

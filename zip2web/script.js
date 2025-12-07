@@ -84,6 +84,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const htmlRE = /\.html?$/i;
     const indexRE = /^index\.html?$/i;
 
+    if(window.DecompressionStream === undefined) {
+        console.warn('Compression Streams not supported');
+        zip.configure({useCompressionStream: false});
+    }
+
     fileInput.addEventListener('change', async (e) => {
         debugLog(e);
 

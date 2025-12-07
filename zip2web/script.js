@@ -84,7 +84,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const htmlRE = /\.html?$/i;
     const indexRE = /^index\.html?$/i;
 
-    if(zip === undefined) {
+    if(zip?.configure === undefined) {
         showError('Failed to load the zip.js library');
     } else if(window.DecompressionStream === undefined) {
         console.warn('Compression Streams not supported');

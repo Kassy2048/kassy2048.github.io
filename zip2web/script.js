@@ -718,8 +718,39 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     playframe.addEventListener('load', (e) => {
+        const url = playframe.contentWindow.location.href;
+        if(url === '') return;
+
         // Replace window title with the iframe title
         document.title = playframe.contentDocument.title;
+
+        // Replace window icon too if present
+        const basePath = url.replace(/\/[^\/]+$/, '/');
+        let icon = playframe.contentDocument.querySelector("link[rel~='icon']");
+        let iconType = undefined;
+        if(icon !== null) {
+            icon = icon.href;
+            iconType = icon.type;
+        }
+        if(!icon) icon = 'favicon.ico';
+
+        if(icon.indexOf('://') == -1) icon = basePath + icon;
+
+        // Make sure the icon exists before changing to it
+        fetch(icon)
+            .then(r => {
+                if(r.status != 200) return;
+
+                // Replace our favicon
+                const favicon = document.querySelector("link[rel~='icon']");
+                if(iconType !== undefined) {
+                    favicon.type = iconType;
+                } else {
+                    favicon.removeAttribute('type');
+                }
+                favicon.href = icon;
+            })
+            .catch(e => {});
     });
 
     playframe.addEventListener('error', (e) => {

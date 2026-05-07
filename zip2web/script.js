@@ -140,8 +140,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 let htmlFiles = new Set();
                 let indexFiles = new Set();
+                let wwwDir = null;
                 root.children.forEach((child) => {
-                    if(child.directory) return;
+                    if(child.directory) {
+                        if(child.name === 'www') wwwDir = child;
+                        return;
+                    }
                     if(!htmlRE.test(child.name)) return;
 
                     htmlFiles.add(child.name);
@@ -149,7 +153,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
 
                 if(htmlFiles.size == 1) {
-                    return path + '/' + htmlFiles.values().next().value;
+                    let htmlFile = htmlFiles.values().next().value;
+                    if(htmlFile === 'credits.html' && wwwDir !== null) {
+                        // RPGM games: use "www/index.html" if present
+                        const indexFile = findStartPath(wwwDir, path + '/www');
+                        if(indexFile.endsWith('/index.html')) return indexFile;
+                    }
+                    return path + '/' + htmlFile;
                 }
 
                 if(indexFiles.size == 1) {

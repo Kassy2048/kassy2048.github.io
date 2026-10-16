@@ -2,9 +2,9 @@
 
 (function() {
     /* Root URL that contains the PyScript scripts */
-    const PYSCRIPT_ROOT = 'https://pyscript.net/releases/2026.7.3/';
+    const PYSCRIPT_ROOT = './pyscript-2026.7.3/';
     /* URL to the interpreter to use (leave empty to use the default) */
-    const INTERPRETER = '';
+    const INTERPRETER = PYSCRIPT_ROOT + 'pyodide/pyodide.mjs';
 
     function insertAfter(newNode, referenceNode) {
         const parentNode = referenceNode.parentElement;
